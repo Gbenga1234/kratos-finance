@@ -1,0 +1,1 @@
+"""Kratos Finance application package."""
