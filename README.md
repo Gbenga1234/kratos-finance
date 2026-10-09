@@ -7,11 +7,11 @@ a complete production financial service.
 
 ## Local container stack
 
-Copy `.env.example` to `.env`, change the local-only database password in both
-PostgreSQL variables and `DATABASE_URL`, then start the stack:
+Local settings are managed in the root `.env` file. It is ignored by Git; the
+tracked `.env.example` contains the template. Change the local-only database
+password in both PostgreSQL variables and `DATABASE_URL`, then start the stack:
 
 ```sh
-cp .env.example .env
 docker compose up --build
 ```
 
@@ -73,9 +73,10 @@ celery -A app.celery_app:celery_app beat --loglevel=INFO
 pytest
 ```
 
-Set `DATABASE_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, the three
-`OIDC_*` values, and `TRUSTED_HOSTS` for the environment. For a local test
-provider, use its real JWKS endpoint; do not add an authentication bypass.
+The local Python application loads these settings from the same `.env` file.
+Edit `DATABASE_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, the three
+`OIDC_*` values, and `TRUSTED_HOSTS` there. For a local test provider, use its
+real JWKS endpoint; do not add an authentication bypass.
 
 ## Deployment boundary
 
