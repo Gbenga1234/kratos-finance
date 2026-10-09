@@ -16,8 +16,9 @@ services:
     init: true
 
   worker:
-    build: .
-    command: celery -A app.celery_app:celery_app worker --loglevel=INFO --queues=default --concurrency=2
+    build:
+      context: .
+      dockerfile: Dockerfile.celery
     environment:
       DATABASE_URL: postgresql+psycopg://finance:finance@db:5432/finance
       CELERY_BROKER_URL: redis://redis:6379/0
