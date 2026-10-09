@@ -7,9 +7,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class TransferCreate(BaseModel):
-    source_account_id: str = Field(min_length=1, max_length=100)
-    destination_account_id: str = Field(min_length=1, max_length=100)
-    amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2)
+    source_account_id: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$")
+    destination_account_id: str = Field(
+        min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_-]+$"
+    )
+    amount: Decimal = Field(gt=0, max_digits=18, decimal_places=2, allow_inf_nan=False)
     currency: str = Field(min_length=3, max_length=3)
 
     @field_validator("currency")

@@ -8,11 +8,14 @@ version = "0.1.0"
 description = "A containerized fintech transfer API starter"
 requires-python = ">=3.11"
 dependencies = [
+    "alembic>=1.14,<2",
     "celery[redis]>=5.4,<6",
     "fastapi>=0.115,<1",
+    "PyJWT[crypto]>=2.10,<3",
     "psycopg[binary]>=3.2,<4",
     "pydantic-settings>=2.6,<3",
     "sqlalchemy>=2.0,<3",
+    "redis>=5.2,<7",
 ]
 
 [project.optional-dependencies]

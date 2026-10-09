@@ -1,12 +1,11 @@
 import code
 
 from app.config import get_settings
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal
 from app.models import Transfer
 
 
 def main() -> None:
-    Base.metadata.create_all(bind=engine)
     namespace = {
         "Base": Base,
         "SessionLocal": SessionLocal,
