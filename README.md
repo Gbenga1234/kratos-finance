@@ -6,8 +6,8 @@ and it does not move funds.
 
 ## Run with containers
 
-Docker Compose starts the FastAPI API, a Celery worker consuming the `default`
-queue, PostgreSQL, and Redis:
+Docker Compose builds the API and Celery worker from separate Dockerfiles, then
+starts them with PostgreSQL and Redis. The worker consumes the `default` queue:
 
 ```sh
 docker compose up --build
