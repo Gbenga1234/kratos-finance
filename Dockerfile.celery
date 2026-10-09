@@ -7,10 +7,11 @@ RUN groupadd --system app && useradd --system --gid app --create-home app
 
 WORKDIR /app
 
-COPY --chown=app:app pyproject.toml ./
+COPY --chown=app:app pyproject.toml alembic.ini ./
 COPY --chown=app:app app ./app
+COPY --chown=app:app migrations ./migrations
 RUN pip install --no-cache-dir .
 
 USER app
 
-CMD ["celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--queues=default", "--concurrency=2"]
+CMD ["celery", "-A", "app.celery_app:celery_app", "worker", "--loglevel=INFO", "--queues=default", "--concurrency=2", "--prefetch-multiplier=1", "--max-tasks-per-child=1000"]

@@ -1,68 +1,109 @@
 # Kratos Finance
 
-A Python fintech starter for submitting and tracking simulated account-to-account
-transfers. It does not connect to a bank, payment processor, or other payment rail,
-and it does not move funds.
+Kratos Finance is a Python service for authenticated, simulated account-to-account
+transfer requests. It does **not** hold funds, maintain spendable balances, connect
+to a payment rail, or move real money. It is not a licensed financial product or
+a complete production financial service.
 
-## Run with containers
+## Local container stack
 
-Docker Compose builds the API and Celery worker from separate Dockerfiles, then
-starts them with PostgreSQL and Redis. The worker consumes the `default` queue:
+Local settings are managed in the root `.env` file. It is ignored by Git; the
+tracked `.env.example` contains the template. Change the local-only database
+password in both PostgreSQL variables and `DATABASE_URL`, then start the stack:
 
 ```sh
 docker compose up --build
 ```
 
-The API is available at <http://localhost:8000>; interactive OpenAPI docs are at
-<http://localhost:8000/docs>.
-If port 8000 is already in use, set `API_PORT` to a free host port, for example
-`API_PORT=18000 docker compose up --build`.
+Compose builds a Gunicorn/Uvicorn API image and a separate Celery image. It also
+runs versioned database migrations, PostgreSQL, Redis, a Celery worker, and the
+single Celery Beat scheduler that dispatches the durable outbox. The API listens
+on `http://localhost:8000`; interactive API docs are enabled only in development.
+Set `API_PORT` if the host port is occupied.
+
+In development, transfer endpoints still require a valid OIDC access token; the
+sample environment intentionally does not bypass authentication. Configure a
+development identity provider and its exact issuer, API audience, and HTTPS JWKS
+URL in `.env`. Tokens must be signed with RS256 or ES256 and include `iss`, `aud`,
+`sub`, `iat`, and `exp`. Requests are scoped to the validated token subject.
 
 ```sh
 curl -X POST http://localhost:8000/transfers \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: demo-transfer-001' \
   -d '{"source_account_id":"acct-a","destination_account_id":"acct-b","amount":"25.00","currency":"USD"}'
 ```
 
-The response contains a transfer ID and starts with `pending`. The worker records
-a simulated `completed` result, which can be read using
-`GET /transfers/{transfer_id}`. Reusing an idempotency key returns its original
-transfer.
+`GET /transfers/{transfer_id}` returns only transfers belonging to the
+authenticated subject. Amounts are decimal values with two decimal places,
+currencies are explicitly allowlisted, and the maximum is configured in cents
+(`MAX_TRANSFER_AMOUNT`, default `10000000`, or 100,000.00 units). A repeated
+idempotency key with the same request returns the original transfer; reusing it
+for a different request returns `409`.
+
+The transfer row and its outbox event commit together. The scheduler retries
+outbox publication; Celery delivery is at-least-once, and the database transition
+is idempotent. The recorded `completed` state means only that the simulation task
+ran.
 
 Useful commands:
 
 ```sh
-make logs             # Follow API and Celery worker logs
+make logs             # Follow API, worker, and scheduler logs
+make migrate          # Run versioned migrations
 make shell            # Open a Python shell with app models and DB session factory
 make container-shell  # Open /bin/sh in the running API container
-make down
+make test             # Run tests
+make down             # Stop services; retain the named database volume
 ```
 
-## Run locally
+## Local Python development
 
-Requires Python 3.11 or newer. Start a local PostgreSQL/Redis service or provide
-their URLs, then install and run:
+Requires Python 3.11 or newer:
 
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-pip install -e '.[dev]'
+pip install -e '.[api,dev]'
+alembic upgrade head
 uvicorn app.main:app --reload
 celery -A app.celery_app:celery_app worker --loglevel=INFO --queues=default
+celery -A app.celery_app:celery_app beat --loglevel=INFO
+pytest
 ```
 
-Without environment overrides, the API uses a local SQLite file and Celery uses
-Redis at `localhost:6379`. Configure `DATABASE_URL`, `CELERY_BROKER_URL`,
-`CELERY_RESULT_BACKEND`, and `LOG_LEVEL` as needed. Logs are emitted to stdout.
+The local Python application loads these settings from the same `.env` file.
+Edit `DATABASE_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, the three
+`OIDC_*` values, and `TRUSTED_HOSTS` there. For a local test provider, use its
+real JWKS endpoint; do not add an authentication bypass.
 
-Run tests with `pytest`.
+## Deployment boundary
 
-## Scope and production notes
+The Compose file is a local development topology, **not a production deployment
+recipe**. `APP_ENV=production` fails closed unless configured with a remote
+PostgreSQL URL using `sslmode=verify-full`, explicit trusted hosts, an HTTPS OIDC
+issuer/JWKS endpoint and audience, and remote authenticated TLS Redis URLs. The
+development Compose Redis and `.env.example` credentials are not production
+secrets.
 
-This is a runnable development scaffold, not a production-ready financial
-service. Before handling real money or financial data, add identity and access
-controls, account ownership and balance/ledger invariants, migrations, secrets
-management, reconciliation, audit retention, rate limits, and a compliant,
-idempotent payment-rail integration. The Compose credentials are development
-defaults and must not be reused in production.
+Before any production use, an accountable team must still:
+
+- Deploy into a managed, supported environment with TLS ingress, network
+  segmentation, managed secrets, protected Redis, and a production OIDC tenant.
+- Establish tenant/account ownership and authorization against a real account
+  registry. Account identifiers in this demo are caller-supplied labels.
+- Add external rate limits, abuse controls, operational alerting, trace/metric
+  export, incident response, audited access, retention, and tested encrypted
+  backups/disaster recovery.
+- Pin reviewed base-image digests and dependency lockfiles, scan artifacts,
+  attest builds, and promote immutable releases.
+- Set organization-specific privacy, security, legal, and regulatory controls.
+- Design a separately reviewed double-entry ledger, reconciliation, settlement,
+  fraud controls, and licensed payment-provider integration before considering
+  any real-money use.
+
+Legacy transfer rows migrated from the pre-migration schema are marked
+`legacy-unowned` and are deliberately not visible through the authenticated API.
+Review and resolve those records through a controlled administrative process;
+the migration does not guess ownership.
