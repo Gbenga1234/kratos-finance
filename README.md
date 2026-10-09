@@ -47,7 +47,7 @@ their URLs, then install and run:
 ```sh
 python -m venv .venv
 . .venv/bin/activate
-pip install -e '.[dev]'
+pip install -e '.[api,dev]'
 uvicorn app.main:app --reload
 celery -A app.celery_app:celery_app worker --loglevel=INFO --queues=default
 ```
@@ -57,6 +57,9 @@ Redis at `localhost:6379`. Configure `DATABASE_URL`, `CELERY_BROKER_URL`,
 `CELERY_RESULT_BACKEND`, and `LOG_LEVEL` as needed. Logs are emitted to stdout.
 
 Run tests with `pytest`.
+
+The API container uses Gunicorn with two Uvicorn workers. The local install
+command includes those optional API dependencies as well.
 
 ## Scope and production notes
 

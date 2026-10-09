@@ -9,10 +9,10 @@ WORKDIR /app
 
 COPY --chown=app:app pyproject.toml ./
 COPY --chown=app:app app ./app
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[api]'
 
 USER app
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["gunicorn", "app.main:app", "--worker-class", "uvicorn_worker.UvicornWorker", "--workers", "2", "--bind", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-"]
